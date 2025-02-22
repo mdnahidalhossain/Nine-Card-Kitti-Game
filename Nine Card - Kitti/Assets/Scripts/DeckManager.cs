@@ -3,6 +3,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using UnityEngine.SceneManagement;
+using System.Linq;
+using UnityEngine.XR;
 
 public class DeckManager : MonoBehaviour
 {
@@ -23,6 +25,10 @@ public class DeckManager : MonoBehaviour
         CreateDeck();
         ShuffleDeck();
         DealCardsToPlayers(9);
+
+        SortByKittiRules();
+
+        
 
         playButton.SetActive(true);
         sortingButton.SetActive(true);
@@ -74,13 +80,133 @@ public class DeckManager : MonoBehaviour
         }
     }
 
-    public void SortAllHands()
+    public void SortPlayer3Hand()
     {
-        foreach (Transform playerHand in playerHands)
+        //foreach (Transform playerHand in playerHands)
+        //{
+        //    StartCoroutine(SortCardsWithAnimation(playerHand));
+        //}
+
+        StartCoroutine(SortCardsWithAnimation(playerHands[2]));
+    }
+
+    public void SortByKittiRules()
+    {
+        for (int i = 0; i < playerHands.Length; i++)
         {
-            StartCoroutine(SortCardsWithAnimation(playerHand));
+            if (i != 2) // Skip Player 3 (who uses animation)
+            {
+                List<Card> handCards = playerHands[i].GetComponentsInChildren<CardHolder>().Select(c => c.CardData).ToList();
+                List<List<Card>> sortedGroups = SortHandByKittiRules(handCards);
+
+                // Directly update the hand UI for Player 1, 2, and 4 without animation
+                // Clear existing cards in the player's hand
+                foreach (Transform cardTransform in playerHands[i])
+                {
+                    Destroy(cardTransform.gameObject);
+                }
+
+                // Add sorted cards to the player's hand UI
+                foreach (var group in sortedGroups)
+                {
+                    foreach (var card in group)
+                    {
+                        GameObject newCard = Instantiate(cardPrefab, playerHands[i]);
+                        CardDisplay cardDisplay = newCard.GetComponent<CardDisplay>();
+                        cardDisplay.SetCard(card);
+                        newCard.AddComponent<CardHolder>().CardData = card;
+                    }
+                }
+            }
+            //else
+            //{
+            //    // Player 3 still uses animation sorting
+            //    StartCoroutine(SortCardsWithAnimation(playerHands[i], sortedGroups));
+            //}
         }
     }
+
+
+
+    private List<List<Card>> SortHandByKittiRules(List<Card> hand)
+    {
+        List<List<Card>> sortedGroups = new List<List<Card>>();
+
+        // Rule 1: Trey (Three of a kind, same rank)
+        var threeOfAKind = hand.GroupBy(c => c.Rank)
+                               .Where(g => g.Count() >= 3)
+                               .OrderByDescending(g => g.Key)
+                               .Select(g => g.Take(3).ToList())
+                               .ToList();
+        sortedGroups.AddRange(threeOfAKind);
+        hand.RemoveAll(c => threeOfAKind.SelectMany(g => g).Contains(c));
+
+        // Rule 2: Color Run (Three consecutive cards of the same suit)
+        var suitGroups = hand.GroupBy(c => c.Suit).Where(g => g.Count() >= 3);
+        foreach (var group in suitGroups)
+        {
+            var sorted = group.OrderByDescending(c => c.Rank).ToList();
+            for (int j = 0; j < sorted.Count - 2; j++)
+            {
+                if (sorted[j].Rank - 1 == sorted[j + 1].Rank && sorted[j + 1].Rank - 1 == sorted[j + 2].Rank)
+                {
+                    sortedGroups.Add(new List<Card> { sorted[j], sorted[j + 1], sorted[j + 2] });
+                    hand.RemoveAll(c => sortedGroups.Last().Contains(c));
+                    break;
+                }
+            }
+        }
+
+        // Rule 3: Run (Three consecutive cards of different suits)
+        hand = hand.OrderByDescending(c => c.Rank).ToList();
+        for (int i = 0; i < hand.Count - 2; i++)
+        {
+            if (hand[i].Rank - 1 == hand[i + 1].Rank && hand[i + 1].Rank - 1 == hand[i + 2].Rank &&
+                hand[i].Suit != hand[i + 1].Suit && hand[i + 1].Suit != hand[i + 2].Suit)
+            {
+                sortedGroups.Add(new List<Card> { hand[i], hand[i + 1], hand[i + 2] });
+                hand.RemoveAll(c => sortedGroups.Last().Contains(c));
+                break;
+            }
+        }
+
+        // Rule 4: Color (Any three cards of the same suit)
+        foreach (var group in suitGroups)
+        {
+            if (group.Count() >= 3)
+            {
+                sortedGroups.Add(group.OrderByDescending(c => c.Rank).Take(3).ToList());
+                hand.RemoveAll(c => sortedGroups.Last().Contains(c));
+            }
+        }
+
+        // Rule 5: Pair (Two of a kind + one random card)
+        var pairs = hand.GroupBy(c => c.Rank).Where(g => g.Count() == 2).ToList();
+        if (pairs.Count > 0)
+        {
+            foreach (var pair in pairs)
+            {
+                var remainingCard = hand.Except(pair).OrderByDescending(c => c.Rank).FirstOrDefault();
+                if (remainingCard != null)
+                {
+                    sortedGroups.Add(pair.Take(2).Concat(new List<Card> { remainingCard }).ToList());
+                    hand.RemoveAll(c => sortedGroups.Last().Contains(c));
+                }
+            }
+        }
+
+        // Rule 6: High Card (Any three remaining cards)
+        while (hand.Count >= 3)
+        {
+            sortedGroups.Add(hand.Take(3).ToList());
+            hand = hand.Skip(3).ToList();
+        }
+
+        return sortedGroups;
+    }
+
+
+
 
     private IEnumerator SortCardsWithAnimation(Transform playerHand)
     {

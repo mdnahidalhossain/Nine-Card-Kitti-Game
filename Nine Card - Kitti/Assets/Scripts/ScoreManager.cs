@@ -47,6 +47,7 @@ public class ScoreManager : MonoBehaviour
         return cards[cards.Count - 1].GetValue(); // Highest card value
     }
 
+    //game rules/combination
     private bool IsTrey(List<Card> cards) => cards[0].Rank == cards[1].Rank && cards[1].Rank == cards[2].Rank;
     private bool IsColorRun(List<Card> cards) => IsRun(cards) && IsColor(cards);
     private bool IsRun(List<Card> cards) => (cards[2].GetValue() - cards[1].GetValue() == 1) && (cards[1].GetValue() - cards[0].GetValue() == 1);
