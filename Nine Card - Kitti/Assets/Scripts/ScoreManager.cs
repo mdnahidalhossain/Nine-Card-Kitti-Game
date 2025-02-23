@@ -1,9 +1,18 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class ScoreManager : MonoBehaviour
 {
     private Dictionary<int, int> phaseWins = new Dictionary<int, int>(); // Player ID -> Phase Wins
+
+    [SerializeField] private Text[] scoreText;
+    [SerializeField] private Text winnerText;
+    [SerializeField] private GameObject endGamePanel;
+
+    public ParticleSystem[] particleVFX;
+
+
 
     public Dictionary<int, int> EvaluatePhase(Transform[] playerBoards)
     {
@@ -24,12 +33,12 @@ public class ScoreManager : MonoBehaviour
 
             int score = CalculateScore(playerCards);
             phaseScores[i] = score;
-            Debug.Log($"Player {i + 1} Phase Score: {score}");
+            Debug.Log($"Player {i + 1} Phase Score: {score}");    
+
         }
 
         return phaseScores; // Return phase scores to be used in DeterminePhaseWinner()
     }
-
 
 
     private int CalculateScore(List<Card> cards)
@@ -85,6 +94,9 @@ public class ScoreManager : MonoBehaviour
             phaseWins[winner]++;
 
             Debug.Log($"Phase Winner: Player {winner + 1}");
+
+            UpdateScoreUI();
+
             return winner;
         }
 
@@ -97,6 +109,7 @@ public class ScoreManager : MonoBehaviour
         phaseWins[winnerByCard]++;
 
         Debug.Log($"Phase Winner (By Highest Card): Player {winnerByCard + 1}");
+        UpdateScoreUI();
         return winnerByCard;
     }
 
@@ -139,9 +152,6 @@ public class ScoreManager : MonoBehaviour
         return maxRank;
     }
 
-
-
-
     public void DetermineGameWinner()
     {
         int highestWins = 0;
@@ -163,13 +173,45 @@ public class ScoreManager : MonoBehaviour
 
         if (winners.Count == 1 && highestWins > 1)
         {
-            Debug.Log($"Final Winner: Player {winners[0] + 1} with {highestWins} Phase Wins");
+            int winner = winners[0]; // Get the winning player index
+            string winnerMessage = "";
+
+            if (winner == 2) // Player-3 (0-based index)
+            {
+                winnerMessage = "You Win!";
+                particleVFX[winner].gameObject.SetActive(true);
+                particleVFX[winner].Play();
+            }
+            else // Player-1, 2, or 4
+            {
+                winnerMessage = $"Player {winner + 1} Wins!";
+                particleVFX[winner].gameObject.SetActive(true);
+                particleVFX[winner].Play();
+            }
+
+            winnerText.text = winnerMessage;
+            endGamePanel.SetActive(true); // Ensure the text is visible
         }
         else
         {
-            Debug.Log("Game is a Draw!");
+            winnerText.text = "Game is a Draw!";
+            endGamePanel.SetActive(true);
         }
     }
 
+    private void UpdateScoreUI()
+    {
+        for (int i = 0; i < scoreText.Length; i++)
+        {
+            if (phaseWins.ContainsKey(i))
+            {
+                scoreText[i].text = $"{phaseWins[i]} / 3";
+            }
+            else
+            {
+                scoreText[i].text = "0 / 3";
+            }
+        }
+    }
 
 }

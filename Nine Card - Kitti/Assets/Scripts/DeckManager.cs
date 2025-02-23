@@ -8,17 +8,20 @@ using UnityEngine.XR;
 
 public class DeckManager : MonoBehaviour
 {
-    public GameObject cardPrefab;  // Assign the UI card prefab in Inspector
-    public Transform[] playerHands;   // Assign the UI container (PlayerHand)
-    public Transform[] playerBoards;  // Assign the board areas for each player
-    public GameObject playButton;  // Assign the play button in Inspector
-    public GameObject sortingButton;
-
     private List<Card> deck = new List<Card>();
+
+    [SerializeField] private ScoreManager scoreManager;
+
+    [SerializeField] private GameObject cardPrefab;  // Assign the UI card prefab in Inspector
+    [SerializeField] private Transform[] playerHands;   // Assign the UI container (PlayerHand)
+    [SerializeField] private Transform[] playerBoards;  // Assign the board areas for each player
+    [SerializeField] private GameObject playButton;  // Assign the play button in Inspector
+    [SerializeField] private GameObject sortingButton;
+
+    
     private bool gameStarted = false; // Prevents multiple draws
     private int currentPhase = 0; // Track the current phase
 
-    public ScoreManager scoreManager;
 
     void Start()
     {
@@ -82,11 +85,6 @@ public class DeckManager : MonoBehaviour
 
     public void SortPlayer3Hand()
     {
-        //foreach (Transform playerHand in playerHands)
-        //{
-        //    StartCoroutine(SortCardsWithAnimation(playerHand));
-        //}
-
         StartCoroutine(SortCardsWithAnimation(playerHands[2]));
     }
 
@@ -118,11 +116,6 @@ public class DeckManager : MonoBehaviour
                     }
                 }
             }
-            //else
-            //{
-            //    // Player 3 still uses animation sorting
-            //    StartCoroutine(SortCardsWithAnimation(playerHands[i], sortedGroups));
-            //}
         }
     }
 
@@ -206,8 +199,6 @@ public class DeckManager : MonoBehaviour
     }
 
 
-
-
     private IEnumerator SortCardsWithAnimation(Transform playerHand)
     {
         List<RectTransform> cardRects = new List<RectTransform>();
@@ -277,19 +268,22 @@ public class DeckManager : MonoBehaviour
     {
         int totalPhases = 3;
         int cardsPerPlayer = 3;
+        int startingPlayer = 0; // Default to Player 1 (index 0)
 
         while (currentPhase <= totalPhases)
         {
             yield return new WaitForSeconds(1.0f);
 
-            for (int p = 0; p < playerHands.Length; p++)
+            // Draw cards, starting from the previous winner
+            for (int i = 0; i < playerHands.Length; i++)
             {
+                int p = (startingPlayer + i) % playerHands.Length; // Circular order
+
                 if (playerHands[p].childCount >= cardsPerPlayer)
                 {
-                    for (int i = 0; i < cardsPerPlayer; i++)
+                    for (int j = 0; j < cardsPerPlayer; j++)
                     {
                         Transform cardToMove = playerHands[p].GetChild(0);
-
                         StartCoroutine(MoveCardToBoard(cardToMove, playerBoards[p]));
 
                         Vector3 originalScale = cardToMove.localScale;
@@ -307,23 +301,46 @@ public class DeckManager : MonoBehaviour
                 }
             }
 
+            // Determine phase winner
             Dictionary<int, int> phaseScores = scoreManager.EvaluatePhase(playerBoards);
             int winnerIndex = scoreManager.DeterminePhaseWinner(phaseScores, playerBoards);
+
+            
+
+            // Set the winner as the first drawer for the next phase
+            startingPlayer = winnerIndex;
+
+            //// Stop any previous VFX
+            //if (currentVFX != null)
+            //{
+            //    currentVFX.Stop();
+            //    particleVFX[winnerIndex].gameObject.SetActive(false);
+            //}
+
+            //// Play VFX for phase winner
+            //if (winnerIndex >= 0 && winnerIndex < particleVFX.Length)
+            //{
+            //    currentVFX = particleVFX[winnerIndex];
+            //    particleVFX[winnerIndex].gameObject.SetActive(true);
+            //    currentVFX.Play();
+            //}
 
             if (currentPhase < totalPhases)
             {
                 yield return StartCoroutine(DestroyCardsOnBoard(winnerIndex));
+
                 currentPhase++;
             }
             else
             {
-                yield return new WaitForSeconds(1.5f);
+                yield return new WaitForSeconds(1.0f);
                 yield return StartCoroutine(DestroyCardsOnBoard(winnerIndex));
                 scoreManager.DetermineGameWinner();
                 yield break;
             }
         }
     }
+
 
     IEnumerator MoveCardToBoard(Transform card, Transform targetBoard)
     {
@@ -332,7 +349,7 @@ public class DeckManager : MonoBehaviour
         Quaternion startRotation = card.rotation;
         Vector3 originalScale = card.localScale; // Store original scale
 
-        float duration = 0.5f;
+        float duration = 0.2f;
         float elapsedTime = 0f;
 
         // Get the layout group and disable it temporarily to prevent scaling changes during move
@@ -381,7 +398,7 @@ public class DeckManager : MonoBehaviour
 
             foreach (GameObject card in cardsToDestroy)
             {
-                StartCoroutine(MoveCardToHandAndDestroy(card.transform, playerHands[winningPlayer]));
+                StartCoroutine(MoveCardToHandAndDestroy(card.transform, playerHands[winningPlayer]));  
             }
         }
 

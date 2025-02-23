@@ -1,21 +1,26 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
-using System.Collections;
 
 public class Draggable : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
-
-    [HideInInspector]
-    public Transform parentToReturnTo = null;
-    [HideInInspector]
-    public Transform placeHolderParent = null;
+    [HideInInspector] public Transform parentToReturnTo = null;
+    [HideInInspector] public Transform placeHolderParent = null;
 
     private GameObject placeHolder = null;
+    private Canvas canvas;
+    private RectTransform rectTransform;
+    private Vector3 dragOffset; // Offset to fix positioning issue
+
+    private void Start()
+    {
+        canvas = GetComponentInParent<Canvas>(); // Get the parent canvas
+        rectTransform = GetComponent<RectTransform>(); // Cache RectTransform
+    }
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        placeHolder = new GameObject();
+        placeHolder = new GameObject("PlaceHolder");
         placeHolder.transform.SetParent(this.transform.parent);
         LayoutElement le = placeHolder.AddComponent<LayoutElement>();
         le.preferredWidth = this.GetComponent<LayoutElement>().preferredWidth;
@@ -30,11 +35,20 @@ public class Draggable : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDra
         this.transform.SetParent(this.transform.parent.parent);
 
         this.GetComponent<CanvasGroup>().blocksRaycasts = false;
+
+        // Calculate initial offset between mouse and card position
+        RectTransformUtility.ScreenPointToWorldPointInRectangle(
+            canvas.transform as RectTransform, eventData.position, canvas.worldCamera, out Vector3 worldMousePos);
+        dragOffset = rectTransform.position - worldMousePos; // Store offset
     }
 
     public void OnDrag(PointerEventData eventData)
     {
-        this.transform.position = eventData.position;
+        if (RectTransformUtility.ScreenPointToWorldPointInRectangle(
+                canvas.transform as RectTransform, eventData.position, canvas.worldCamera, out Vector3 worldMousePos))
+        {
+            rectTransform.position = worldMousePos + dragOffset; // Apply offset correction
+        }
 
         if (placeHolder.transform.parent != placeHolderParent)
         {
@@ -55,7 +69,6 @@ public class Draggable : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDra
                 break;
             }
         }
-
 
         placeHolder.transform.SetSiblingIndex(newSiblingIndex);
     }
