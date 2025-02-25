@@ -12,6 +12,8 @@ public class Draggable : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDra
     private RectTransform rectTransform;
     private Vector3 dragOffset; // Offset to fix positioning issue
 
+    public static bool canDrag = true; // Control dragging
+
     private void Start()
     {
         canvas = GetComponentInParent<Canvas>(); // Get the parent canvas
@@ -20,6 +22,8 @@ public class Draggable : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDra
 
     public void OnBeginDrag(PointerEventData eventData)
     {
+        if (!canDrag) return;
+
         placeHolder = new GameObject("PlaceHolder");
         placeHolder.transform.SetParent(this.transform.parent);
         LayoutElement le = placeHolder.AddComponent<LayoutElement>();
@@ -44,6 +48,8 @@ public class Draggable : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDra
 
     public void OnDrag(PointerEventData eventData)
     {
+        if (!canDrag) return;
+
         if (RectTransformUtility.ScreenPointToWorldPointInRectangle(
                 canvas.transform as RectTransform, eventData.position, canvas.worldCamera, out Vector3 worldMousePos))
         {
@@ -75,9 +81,21 @@ public class Draggable : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDra
 
     public void OnEndDrag(PointerEventData eventData)
     {
+        if (!canDrag) return;
+
         this.transform.SetParent(parentToReturnTo);
         this.transform.SetSiblingIndex(placeHolder.transform.GetSiblingIndex());
         this.GetComponent<CanvasGroup>().blocksRaycasts = true;
         Destroy(placeHolder);
+    }
+
+    public static void DisableDragging()
+    {
+        canDrag = false;
+    }
+
+    public static void EnableDragging()
+    {
+        canDrag = true;
     }
 }

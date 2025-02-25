@@ -18,7 +18,11 @@ public class DeckManager : MonoBehaviour
     [SerializeField] private GameObject playButton;  // Assign the play button in Inspector
     [SerializeField] private GameObject sortingButton;
 
-    
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip drawCardAudio;
+    [SerializeField] private AudioClip pickCardAudio;
+
+
     private bool gameStarted = false; // Prevents multiple draws
     private int currentPhase = 0; // Track the current phase
 
@@ -259,8 +263,25 @@ public class DeckManager : MonoBehaviour
             gameStarted = true;
             playButton.SetActive(false);
             sortingButton.SetActive(false);
+
+            Draggable.DisableDragging();
+            Debug.Log("Game started! Dragging disabled.");
+
             currentPhase = 1; // Start with phase 1
             StartCoroutine(DrawCardsSequentially());
+        }
+    }
+
+    public void PlayCardDrawSound()
+    {
+        if (audioSource != null && drawCardAudio != null)
+        {
+            audioSource.clip = drawCardAudio;  // Set the clip
+            audioSource.Play();
+        }
+        else
+        {
+            Debug.LogWarning("AudioSource or AudioClip is missing!");
         }
     }
 
@@ -284,6 +305,9 @@ public class DeckManager : MonoBehaviour
                     for (int j = 0; j < cardsPerPlayer; j++)
                     {
                         Transform cardToMove = playerHands[p].GetChild(0);
+
+                        PlayCardDrawSound();
+
                         StartCoroutine(MoveCardToBoard(cardToMove, playerBoards[p]));
 
                         Vector3 originalScale = cardToMove.localScale;
@@ -305,25 +329,8 @@ public class DeckManager : MonoBehaviour
             Dictionary<int, int> phaseScores = scoreManager.EvaluatePhase(playerBoards);
             int winnerIndex = scoreManager.DeterminePhaseWinner(phaseScores, playerBoards);
 
-            
-
             // Set the winner as the first drawer for the next phase
             startingPlayer = winnerIndex;
-
-            //// Stop any previous VFX
-            //if (currentVFX != null)
-            //{
-            //    currentVFX.Stop();
-            //    particleVFX[winnerIndex].gameObject.SetActive(false);
-            //}
-
-            //// Play VFX for phase winner
-            //if (winnerIndex >= 0 && winnerIndex < particleVFX.Length)
-            //{
-            //    currentVFX = particleVFX[winnerIndex];
-            //    particleVFX[winnerIndex].gameObject.SetActive(true);
-            //    currentVFX.Play();
-            //}
 
             if (currentPhase < totalPhases)
             {
@@ -333,7 +340,6 @@ public class DeckManager : MonoBehaviour
             }
             else
             {
-                yield return new WaitForSeconds(1.0f);
                 yield return StartCoroutine(DestroyCardsOnBoard(winnerIndex));
                 scoreManager.DetermineGameWinner();
                 yield break;
@@ -398,6 +404,7 @@ public class DeckManager : MonoBehaviour
 
             foreach (GameObject card in cardsToDestroy)
             {
+                PlayCardPickupSound();
                 StartCoroutine(MoveCardToHandAndDestroy(card.transform, playerHands[winningPlayer]));  
             }
         }
@@ -416,12 +423,24 @@ public class DeckManager : MonoBehaviour
         {
             float t = elapsedTime / duration;
             card.position = Vector3.Lerp(startPosition, targetPosition, t);
+            
             elapsedTime += Time.deltaTime;
             yield return null;
         }
-
+        
         Destroy(card.gameObject); // Destroy after animation
     }
 
-
+    public void PlayCardPickupSound()
+    {
+        if (audioSource != null && pickCardAudio != null)
+        {
+            audioSource.clip = pickCardAudio;  // Set the clip
+            audioSource.Play();
+        }
+        else
+        {
+            Debug.LogWarning("AudioSource or AudioClip is missing!");
+        }
+    }
 }

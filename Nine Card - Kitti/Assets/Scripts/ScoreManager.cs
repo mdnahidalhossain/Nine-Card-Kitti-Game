@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,7 +11,7 @@ public class ScoreManager : MonoBehaviour
     [SerializeField] private Text winnerText;
     [SerializeField] private GameObject endGamePanel;
 
-    public ParticleSystem[] particleVFX;
+    [SerializeField] private ParticleSystem[] particleVFX;
 
 
 
@@ -95,7 +96,7 @@ public class ScoreManager : MonoBehaviour
 
             Debug.Log($"Phase Winner: Player {winner + 1}");
 
-            UpdateScoreUI();
+            StartCoroutine(UpdateScoreUI());
 
             return winner;
         }
@@ -109,7 +110,7 @@ public class ScoreManager : MonoBehaviour
         phaseWins[winnerByCard]++;
 
         Debug.Log($"Phase Winner (By Highest Card): Player {winnerByCard + 1}");
-        UpdateScoreUI();
+        StartCoroutine(UpdateScoreUI());
         return winnerByCard;
     }
 
@@ -199,8 +200,10 @@ public class ScoreManager : MonoBehaviour
         }
     }
 
-    private void UpdateScoreUI()
+    private IEnumerator UpdateScoreUI()
     {
+        yield return new WaitForSeconds(1.0f);
+
         for (int i = 0; i < scoreText.Length; i++)
         {
             if (phaseWins.ContainsKey(i))
