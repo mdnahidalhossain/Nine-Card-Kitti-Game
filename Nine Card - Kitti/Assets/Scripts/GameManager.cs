@@ -10,6 +10,12 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject resumeGameIcon;
     [SerializeField] private GameObject pauseGamePanel;
 
+    [SerializeField] private DeckManager deckManager;
+
+    // Boolean to track if the game is paused
+    private bool isPaused = false;
+
+
     public void PlayAgain()
     {
         //restarts the game
@@ -18,21 +24,19 @@ public class GameManager : MonoBehaviour
     }
 
 
-    // Boolean to track if the game is paused
-    private bool isPaused = false;
-
-
     // Method to pause and unpause the game
     public void TogglePause()
     {
         if (isPaused)
         {
+            deckManager.ButtonClickSound();
             UnpauseGame();
             Debug.Log("Game is unpaused.");
             pauseGamePanel.SetActive(false);
         }
         else
         {
+            deckManager.ButtonClickSound();
             PauseGame();
             Debug.Log("Game is paused.");
             pauseGamePanel.SetActive(true);

@@ -3,7 +3,7 @@ using UnityEngine.UI;
 
 public class CardDisplay : MonoBehaviour
 {
-    public Image cardImage; // Reference to the card's UI Image
+    [SerializeField] private Image cardImage; // Reference to the card's UI Image
 
     public void SetCard(Card card)
     {

@@ -21,6 +21,7 @@ public class DeckManager : MonoBehaviour
     [SerializeField] private AudioSource audioSource;
     [SerializeField] private AudioClip drawCardAudio;
     [SerializeField] private AudioClip pickCardAudio;
+    [SerializeField] private AudioClip buttonClickSound;
 
 
     private bool gameStarted = false; // Prevents multiple draws
@@ -34,11 +35,6 @@ public class DeckManager : MonoBehaviour
         DealCardsToPlayers(9);
 
         SortByKittiRules();
-
-        
-
-        playButton.SetActive(true);
-        sortingButton.SetActive(true);
     }
 
     void CreateDeck()
@@ -89,6 +85,7 @@ public class DeckManager : MonoBehaviour
 
     public void SortPlayer3Hand()
     {
+        ButtonClickSound();
         StartCoroutine(SortCardsWithAnimation(playerHands[2]));
     }
 
@@ -264,11 +261,26 @@ public class DeckManager : MonoBehaviour
             playButton.SetActive(false);
             sortingButton.SetActive(false);
 
+            ButtonClickSound();
+
             Draggable.DisableDragging();
             Debug.Log("Game started! Dragging disabled.");
 
             currentPhase = 1; // Start with phase 1
             StartCoroutine(DrawCardsSequentially());
+        }
+    }
+
+    public void ButtonClickSound()
+    {
+        if (audioSource != null && buttonClickSound != null)
+        {
+            audioSource.clip = buttonClickSound;  // Set the clip
+            audioSource.Play();
+        }
+        else
+        {
+            Debug.LogWarning("AudioSource or AudioClip is missing!");
         }
     }
 

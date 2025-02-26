@@ -13,8 +13,6 @@ public class ScoreManager : MonoBehaviour
 
     [SerializeField] private ParticleSystem[] particleVFX;
 
-
-
     public Dictionary<int, int> EvaluatePhase(Transform[] playerBoards)
     {
         Dictionary<int, int> phaseScores = new Dictionary<int, int>();
