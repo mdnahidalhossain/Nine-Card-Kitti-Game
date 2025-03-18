@@ -40,7 +40,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 10.9508, y: 0}
-  m_SizeDelta: {x: 150, y: 260}
+  m_SizeDelta: {x: 130, y: 240}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1951394306025066393
 CanvasRenderer:
@@ -114,6 +114,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parentToReturnTo: {fileID: 0}
   placeHolderParent: {fileID: 0}
+  deckManager: {fileID: 0}
 --- !u!225 &3002250163020932870
 CanvasGroup:
   m_ObjectHideFlags: 0

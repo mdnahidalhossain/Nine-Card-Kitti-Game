@@ -1,9 +1,12 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using DG.Tweening;
 
 public class Draggable : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
+    [SerializeField] private DeckManager deckManager;
+
     [HideInInspector] public Transform parentToReturnTo = null;
     [HideInInspector] public Transform placeHolderParent = null;
 
@@ -14,10 +17,22 @@ public class Draggable : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDra
 
     public static bool canDrag = true; // Control dragging
 
+    
+
     private void Start()
     {
         canvas = GetComponentInParent<Canvas>(); // Get the parent canvas
         rectTransform = GetComponent<RectTransform>(); // Cache RectTransform
+
+        // Automatically find and assign DeckManager if not assigned manually
+        if (deckManager == null)
+        {
+            deckManager = FindObjectOfType<DeckManager>();
+            if (deckManager == null)
+            {
+                Debug.LogError("DeckManager not found in the scene! Make sure it is added.");
+            }
+        }
     }
 
     public void OnBeginDrag(PointerEventData eventData)
@@ -83,11 +98,52 @@ public class Draggable : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDra
     {
         if (!canDrag) return;
 
-        this.transform.SetParent(parentToReturnTo);
-        this.transform.SetSiblingIndex(placeHolder.transform.GetSiblingIndex());
         this.GetComponent<CanvasGroup>().blocksRaycasts = true;
+
+        // Get final position and sibling index
+        Transform finalParent = parentToReturnTo;
+        int finalSiblingIndex = placeHolder.transform.GetSiblingIndex();
+
+        // Ensure correct hierarchy before animation
+        this.transform.SetParent(finalParent);
+        this.transform.SetSiblingIndex(finalSiblingIndex);
+
+        // Animate movement smoothly
+        this.transform.DOMove(placeHolder.transform.position, 0.3f)
+            .SetEase(Ease.OutQuad)
+            .OnComplete(() =>
+            {
+                FixLayoutUpdate(finalParent); // Ensure proper layout stacking
+
+                // Check if deckManager is assigned
+                if (deckManager != null)
+                {
+                    deckManager.AnalyzePlayer3Hand();
+                }
+                else
+                {
+                    Debug.LogError("deckManager is not assigned!");
+                }
+            });
+
         Destroy(placeHolder);
     }
+
+
+
+    /// <summary>
+    /// Forces Unity's Layout Group to update, preventing stacking issues.
+    /// </summary>
+    private void FixLayoutUpdate(Transform parent)
+    {
+        LayoutGroup layoutGroup = parent.GetComponent<LayoutGroup>();
+        if (layoutGroup != null)
+        {
+            layoutGroup.enabled = false;
+            layoutGroup.enabled = true;
+        }
+    }
+
 
     public static void DisableDragging()
     {

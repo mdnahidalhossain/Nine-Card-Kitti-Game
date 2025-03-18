@@ -40,7 +40,7 @@ public class ScoreManager : MonoBehaviour
     }
 
 
-    private int CalculateScore(List<Card> cards)
+    public int CalculateScore(List<Card> cards)
     {
         if (cards.Count < 3) return 0; // Invalid hand
 

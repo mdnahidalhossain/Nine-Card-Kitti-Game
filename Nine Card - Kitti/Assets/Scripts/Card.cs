@@ -5,7 +5,7 @@ using UnityEngine;
 public class Card
 {
     public enum SuitType { Hearts, Diamonds, Clubs, Spades }
-    public enum RankType { Two = 2, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Jack, Queen, King, Ace }
+    public enum RankType { Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Jack, Queen, King, Ace }
 
     public SuitType Suit;
     public RankType Rank;

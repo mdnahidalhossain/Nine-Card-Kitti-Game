@@ -16,12 +16,26 @@ public class GameManager : MonoBehaviour
     private bool isPaused = false;
 
 
-    public void PlayAgain()
+    public void PlayAgainScene1()
     {
-        //restarts the game
+        //load scene 1
+        SceneManager.LoadScene(1);
+        Draggable.EnableDragging();
+    }
+
+    public void PlayAgainScene2()
+    {
+        //load scene 2
+        SceneManager.LoadScene(2);
+        Draggable.EnableDragging();
+    }
+
+    public void HomeButtonOnClick()
+    {
         SceneManager.LoadScene(0);
         Draggable.EnableDragging();
     }
+
 
 
     // Method to pause and unpause the game

@@ -5,6 +5,7 @@ using System.Collections;
 using UnityEngine.SceneManagement;
 using System.Linq;
 using UnityEngine.XR;
+using DG.Tweening;
 
 public class DeckManager : MonoBehaviour
 {
@@ -23,6 +24,12 @@ public class DeckManager : MonoBehaviour
     [SerializeField] private AudioClip pickCardAudio;
     [SerializeField] private AudioClip buttonClickSound;
 
+    [SerializeField] private Text[] cardGroupNameText;
+    [SerializeField] private GameObject[] cardGroupNameTextUI;
+
+    private List<(List<Card> group, string rank)> rankedGroups;
+    private Transform player3Hand;
+
 
     private bool gameStarted = false; // Prevents multiple draws
     private int currentPhase = 0; // Track the current phase
@@ -35,6 +42,8 @@ public class DeckManager : MonoBehaviour
         DealCardsToPlayers(9);
 
         SortByKittiRules();
+
+        AnalyzePlayer3Hand();
     }
 
     void CreateDeck()
@@ -230,27 +239,32 @@ public class DeckManager : MonoBehaviour
             originalPositions[cardRects[i]] = cardRects[i].anchoredPosition;
         }
 
-        // Animate movement to sorted positions
-        float duration = 0.3f;
-        float elapsedTime = 0f;
-        while (elapsedTime < duration)
-        {
-            for (int i = 0; i < cardRects.Count; i++)
-            {
-                Vector3 start = originalPositions[cardRects[i]];
-                Vector3 target = playerHand.GetChild(i).GetComponent<RectTransform>().anchoredPosition;
-                cardRects[i].anchoredPosition = Vector3.Lerp(start, target, elapsedTime / duration);
-            }
-            elapsedTime += Time.deltaTime;
-            yield return null;
-        }
+        // Animate movement to sorted positions using DoTween
+        float duration = 0.5f;
 
-        // Set final positions and update sibling order
+        // Start animation for each card
         for (int i = 0; i < cardRects.Count; i++)
         {
-            cardRects[i].anchoredPosition = playerHand.GetChild(i).GetComponent<RectTransform>().anchoredPosition;
+            // Get the target position (the position in the sorted order)
+            Vector3 targetPosition = playerHand.GetChild(i).GetComponent<RectTransform>().anchoredPosition;
+
+            // Use DoTween to smoothly animate the card to its new position
+            cardRects[i].DOAnchorPos(targetPosition, duration).SetEase(Ease.InOutQuad);
+
+            // Optionally, you can also stagger the animations for a smoother effect
+            // cardRects[i].DOAnchorPos(targetPosition, duration).SetEase(Ease.InOutQuad).SetDelay(i * 0.1f);
+        }
+
+        // Wait for the animation to finish before moving to the next step
+        yield return new WaitForSeconds(duration);
+
+        // After animation, update the sibling order to match the new sorted positions
+        for (int i = 0; i < cardRects.Count; i++)
+        {
             cardRects[i].SetSiblingIndex(i);
         }
+
+        AnalyzePlayer3Hand();
     }
 
     public void StartDrawing()
@@ -262,6 +276,15 @@ public class DeckManager : MonoBehaviour
             sortingButton.SetActive(false);
 
             ButtonClickSound();
+
+            for (int i=0; i<cardGroupNameTextUI.Length; i++)
+            {
+                cardGroupNameTextUI[i].SetActive(false);
+            }
+
+            //StartCoroutine(GroupAndAnimatePlayer3Cards());
+
+            StartCoroutine(SortAndReorderCardsWithAnimation());
 
             Draggable.DisableDragging();
             Debug.Log("Game started! Dragging disabled.");
@@ -305,7 +328,10 @@ public class DeckManager : MonoBehaviour
 
         while (currentPhase <= totalPhases)
         {
-            yield return new WaitForSeconds(1.0f);
+            yield return new WaitForSeconds(2.5f);
+
+            // Ensure cards are sorted and reordered before drawing them
+            
 
             // Draw cards, starting from the previous winner
             for (int i = 0; i < playerHands.Length; i++)
@@ -316,10 +342,10 @@ public class DeckManager : MonoBehaviour
                 {
                     for (int j = 0; j < cardsPerPlayer; j++)
                     {
+                        // Get the first child, which should be the leftmost card after sorting
                         Transform cardToMove = playerHands[p].GetChild(0);
 
                         PlayCardDrawSound();
-
                         StartCoroutine(MoveCardToBoard(cardToMove, playerBoards[p]));
 
                         Vector3 originalScale = cardToMove.localScale;
@@ -455,4 +481,141 @@ public class DeckManager : MonoBehaviour
             Debug.LogWarning("AudioSource or AudioClip is missing!");
         }
     }
+
+
+    public void AnalyzePlayer3Hand()
+    {
+        player3Hand = playerHands[2]; // Player 3's hand
+        List<CardHolder> cardHolders = player3Hand.GetComponentsInChildren<CardHolder>().ToList();
+        List<Card> handCards = cardHolders.Select(c => c.CardData).ToList();
+
+        if (handCards.Count != 9)
+        {
+            Debug.LogError("Player 3 does not have exactly 9 cards! Check card distribution.");
+            return;
+        }
+
+        // Divide into groups of 3 cards
+        List<List<Card>> groups = new List<List<Card>>
+        {
+            handCards.GetRange(0, 3),
+            handCards.GetRange(3, 3),
+            handCards.GetRange(6, 3)
+        };
+
+        rankedGroups = new List<(List<Card>, string)>();
+
+        for (int i = 0; i < groups.Count; i++)
+        {
+            string rankName = DetermineKittiRank(groups[i]);
+            rankedGroups.Add((groups[i], rankName));
+            Debug.Log($"Group-{i + 1}: {rankName}");
+            cardGroupNameText[i].text = rankName; // Update UI
+        }
+    }
+
+    private string DetermineKittiRank(List<Card> group)
+    {
+        if (group.Count != 3)
+            return "Invalid Group";
+
+        group = group.OrderBy(c => (int)c.Rank).ToList();
+
+        if (group[0].Rank == group[1].Rank && group[1].Rank == group[2].Rank)
+            return "Trey";
+
+        if (group[0].Suit == group[1].Suit && group[1].Suit == group[2].Suit &&
+            (int)group[1].Rank == (int)group[0].Rank + 1 &&
+            (int)group[2].Rank == (int)group[1].Rank + 1)
+            return "Color Run";
+
+        if ((int)group[1].Rank == (int)group[0].Rank + 1 &&
+            (int)group[2].Rank == (int)group[1].Rank + 1 &&
+            !(group[0].Suit == group[1].Suit && group[1].Suit == group[2].Suit))
+            return "Run";
+
+        if (group[0].Suit == group[1].Suit && group[1].Suit == group[2].Suit)
+            return "Color";
+
+        if (group[0].Rank == group[1].Rank || group[1].Rank == group[2].Rank || group[0].Rank == group[2].Rank)
+            return "Pair";
+
+        return "High Card";
+    }
+
+    private Dictionary<string, int> rankOrder = new Dictionary<string, int>
+    {
+        {"Trey", 1},
+        {"Color Run", 2},
+        {"Run", 3},
+        {"Color", 4},
+        {"Pair", 5},
+        {"High Card", 6}
+    };
+
+    private IEnumerator SortAndReorderCardsWithAnimation()
+    {
+        if (rankedGroups == null || rankedGroups.Count == 0)
+        {
+            Debug.LogError("AnalyzePlayer3Hand() must be called before sorting!");
+            yield break;
+        }
+
+        List<CardHolder> cardHolders = player3Hand.GetComponentsInChildren<CardHolder>().ToList();
+
+        // Step 1: Sort groups first by Kitti rank, then by the highest card within the group
+        rankedGroups = rankedGroups
+            .OrderBy(g => rankOrder[g.rank]) // Sort by Kitti rank
+            .ThenByDescending(g => g.group.Max(c => (int)c.Rank)) // If same rank, sort by highest card in the group
+            .ToList();
+
+        // Step 2: Flatten the sorted groups into a single list
+        List<Card> orderedCards = rankedGroups.SelectMany(g => g.group).ToList();
+
+        // Step 3: Collect UI elements for animation
+        List<RectTransform> cardRects = cardHolders.Select(h => h.GetComponent<RectTransform>()).ToList();
+
+        if (orderedCards.Count != cardRects.Count)
+        {
+            Debug.LogError("Mismatch between sorted cards and UI card count!");
+            yield break;
+        }
+
+        float duration = 0.5f;
+        float delay = 0.1f;
+
+        Dictionary<RectTransform, Vector3> originalPositions = new Dictionary<RectTransform, Vector3>();
+        for (int i = 0; i < cardRects.Count; i++)
+        {
+            originalPositions[cardRects[i]] = cardRects[i].anchoredPosition;
+        }
+
+        // Step 4: Animate movement
+        for (int i = 0; i < orderedCards.Count; i++)
+        {
+            RectTransform cardRect = cardRects.FirstOrDefault(rect => rect.GetComponent<CardHolder>().CardData == orderedCards[i]);
+            if (cardRect != null)
+            {
+                Vector3 targetPosition = player3Hand.GetChild(i).GetComponent<RectTransform>().anchoredPosition;
+                cardRect.DOAnchorPos(targetPosition, duration).SetEase(Ease.InOutQuad).SetDelay(i * delay);
+            }
+        }
+
+        yield return new WaitForSeconds(duration + (orderedCards.Count * delay));
+
+        // Step 5: Update actual Transform order to match sorted order
+        for (int i = 0; i < orderedCards.Count; i++)
+        {
+            Transform cardTransform = cardRects.FirstOrDefault(rect => rect.GetComponent<CardHolder>().CardData == orderedCards[i]).transform;
+            if (cardTransform != null)
+            {
+                cardTransform.SetSiblingIndex(i); // Reorder the hierarchy
+            }
+        }
+
+        Debug.Log("Sorting & Animation complete for Player 3's hand.");
+
+        yield return orderedCards;
+    }
+
 }
